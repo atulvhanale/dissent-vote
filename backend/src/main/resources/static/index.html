@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>notmyvote.in</title>
+<style>
+  :root { --line:#000; --bg:#fff; --muted:#666; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--line);
+    font-family: "Courier New", monospace; font-size: 14px; line-height: 1.4;
+  }
+  header {
+    position: sticky; top: 0; background: var(--bg); z-index: 5;
+    border-bottom: 2px solid var(--line); padding: 18px 20px; min-height: 78px;
+  }
+  /* Centered title + tagline; selection box vertically centred in the top-right corner. */
+  .header-center { text-align: center; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: 1px; text-transform: uppercase; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  #me {
+    position: absolute; top: 50%; right: 20px; transform: translateY(-50%);
+    text-align: right; font-size: 13px; border: 1px solid var(--line);
+    padding: 8px 10px; min-width: 190px; max-width: 320px; line-height: 1.5;
+  }
+  #me b { display: block; }
+  #me .name { display: block; }
+  #me .since { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+  #me.empty { color: var(--muted); font-size: 11px; }
+
+  /* 3-column layout: left = top issues, center = list, right = live stats.
+     Equal-width gutters and a centred max-width keep the side panels equidistant. */
+  .layout {
+    display: grid; grid-template-columns: 240px minmax(0, 1fr) 240px;
+    gap: 24px; align-items: start; padding: 24px; max-width: 1280px; margin: 0 auto;
+  }
+  aside { border: 1px solid var(--line); padding: 12px; }
+  /* Right rail stacks the stats + how-it-works panels; sticky as a group. */
+  .rail { display: flex; flex-direction: column; gap: 24px; position: sticky; top: 96px; }
+  #issues { position: sticky; top: 96px; }
+  .rules { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.45; }
+  .rules li { margin-bottom: 6px; }
+  .share-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; }
+  .share-note p { margin: 0 0 6px; }
+  .share-note p:last-child { margin-bottom: 0; }
+  aside h2 { font-size: 12px; margin: 0 0 8px; text-transform: uppercase; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  aside .placeholder { color: var(--muted); font-size: 11px; }
+  .issue { margin-bottom: 10px; }
+  .issue-head { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; }
+  .issue-head span { line-height: 1.2; }
+  .issue-head b { font-variant-numeric: tabular-nums; }
+  .bar { height: 5px; border: 1px solid var(--line); margin-top: 3px; }
+  .bar span { display: block; height: 100%; background: var(--line); }
+  .stat { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 0; border-bottom: 1px dotted var(--line); }
+  .stat:last-child { border-bottom: 0; }
+  .stat b { font-variant-numeric: tabular-nums; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    aside, .rail, #issues { position: static; }
+  }
+  main { min-width: 0; }
+  .controls { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+  .controls input[type=search] { min-width: 320px; }
+  input[type=text], input[type=search] {
+    font-family: inherit; font-size: 14px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--line); padding: 6px 8px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { border-bottom: 2px solid var(--line); text-transform: uppercase; font-size: 12px; }
+  tr.type-PARTY td { background: #f2f2f2; font-weight: bold; }
+  tr.type-PM td { background: #e6e6e6; font-weight: bold; }
+  .votes { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  button {
+    font-family: inherit; font-size: 13px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--line); padding: 5px 10px; cursor: pointer;
+  }
+  button:hover { background: var(--line); color: var(--bg); }
+  button.selected { background: var(--line); color: var(--bg); }
+  button:disabled { opacity: .4; cursor: default; }
+  /* Modal */
+  #overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  #overlay.open { display: flex; }
+  .modal {
+    background: var(--bg); border: 2px solid var(--line); padding: 18px;
+    width: 100%; max-width: 420px;
+  }
+  .modal h2 { margin: 0 0 6px; font-size: 15px; text-transform: uppercase; }
+  .modal p { margin: 6px 0; }
+  .modal .row { margin: 10px 0; }
+  .modal input, .modal textarea { width: 100%; font-family: inherit; font-size: 14px;
+    border: 1px solid var(--line); padding: 8px; background: var(--bg); color: var(--line); }
+  .modal textarea { min-height: 70px; resize: vertical; }
+  .modal .actions { display: flex; justify-content: space-between; margin-top: 14px; }
+  .msg { font-size: 12px; margin-top: 8px; min-height: 16px; }
+  .warn { border-left: 3px solid var(--line); padding-left: 8px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-center">
+    <h1>notmyvote.in</h1>
+    <div class="sub">Pick ONE party, the PM, or an MP you won't vote for next election. One choice per person.</div>
+  </div>
+  <div id="me" class="empty">Read-only view. No active selection.</div>
+</header>
+
+<div class="layout">
+  <!-- Left: consolidated list of the biggest reported issues + votes (coming soon). -->
+  <aside id="issues">
+    <h2>Top reported issues</h2>
+    <div class="placeholder">Coming soon — a consolidated list of the biggest issues people reported, with how many votes each received.</div>
+  </aside>
+
+  <main>
+    <div class="controls">
+      <input type="search" id="filter" placeholder="Filter by name, party or department…">
+      <span class="sub" id="count"></span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Type</th><th>Party</th><th>Department</th><th class="votes">Votes</th><th></th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </main>
+
+  <!-- Right rail: live participation stats, then how-it-works / sharing. -->
+  <div class="rail">
+    <aside id="stats">
+      <h2>Live stats</h2>
+      <div class="placeholder">Coming soon — total responses today, live now, last month, and month-over-month change.</div>
+    </aside>
+
+    <aside id="howto">
+      <h2>How it works</h2>
+      <ul class="rules">
+        <li>Pick <b>one</b> party, the PM, a minister, an MP or an MLA you won't vote for.</li>
+        <li>Add a short reason (min 5 chars) so it's a serious choice.</li>
+        <li>Verify your mobile with an OTP — no account, no login.</li>
+        <li>One choice per person. Changing it replaces the old one.</li>
+        <li>Browsing is free and read-only; you only verify to vote.</li>
+      </ul>
+      <div class="share-note">
+        <p>We publish the running tally on <b>X</b>, <b>YouTube</b> and other platforms.</p>
+        <p>Share notmyvote.in with friends — the more people who join, the louder our collective dissent.</p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Modal handles the whole OTP + reason flow -->
+<div id="overlay">
+  <div class="modal">
+    <h2 id="m-title">Confirm selection</h2>
+    <p id="m-target" class="warn"></p>
+    <div id="m-change" class="warn hidden"></div>
+
+    <!-- Reason -->
+    <div class="row">
+      <label for="reason">Why won't you vote for them? (min 5 chars)</label>
+      <textarea id="reason" maxlength="500"></textarea>
+    </div>
+
+    <!-- Mobile + OTP -->
+    <div class="row" id="step-mobile">
+      <label for="mobile">Mobile number</label>
+      <input type="text" id="mobile" placeholder="e.g. +911234567890" autocomplete="tel">
+    </div>
+    <div class="row hidden" id="step-otp">
+      <label for="otp">Enter the OTP printed in the server console</label>
+      <input type="text" id="otp" inputmode="numeric" maxlength="6" placeholder="6-digit code">
+    </div>
+
+    <div class="msg" id="m-msg"></div>
+
+    <div class="actions">
+      <button id="m-cancel">Cancel</button>
+      <button id="m-primary">Send OTP</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let ENTITIES = [];
+let target = null;            // entity chosen in this flow
+let token = localStorage.getItem('voteToken') || null;
+let stage = 'mobile';         // mobile -> otp -> cast
+
+async function api(path, opts) {
+  const res = await fetch('/api' + path, opts);
+  let body = null;
+  try { body = await res.json(); } catch (e) {}
+  return { ok: res.ok, status: res.status, body };
+}
+
+function typeLabel(t) {
+  return ({ PARTY:'Party', PM:'Prime Minister', MINISTER:'Minister', MP:'MP', MLA:'MLA' })[t] || t;
+}
+
+function entityLabel(e) {
+  if (e.type === 'PARTY') return e.name + ' (Party)';
+  if (e.type === 'PM') return e.name + (e.party ? ' — ' + e.party : '');
+  return e.name + ' (' + typeLabel(e.type) + (e.party ? ', ' + e.party : '') + ')';
+}
+
+async function loadEntities() {
+  const r = await api('/entities');
+  ENTITIES = r.body || [];
+  render();
+}
+
+function render() {
+  const q = $('filter').value.trim().toLowerCase();
+  const rows = $('rows');
+  rows.innerHTML = '';
+  const sel = currentSelectionId();
+  let shown = 0;
+  for (const e of ENTITIES) {
+    const hay = (e.name + ' ' + (e.party||'') + ' ' + (e.department||'')).toLowerCase();
+    if (q && !hay.includes(q)) continue;
+    shown++;
+    const tr = document.createElement('tr');
+    tr.className = 'type-' + e.type;
+    const isSel = sel === e.id;
+    tr.innerHTML =
+      `<td>${esc(e.name)}</td>` +
+      `<td>${esc(typeLabel(e.type))}</td>` +
+      `<td>${esc(e.party || (e.type==='PARTY'?'—':''))}</td>` +
+      `<td>${esc(e.department || '—')}</td>` +
+      `<td class="votes">${e.votes}</td>` +
+      `<td><button data-id="${e.id}" class="${isSel?'selected':''}">${isSel?'Selected':'Select'}</button></td>`;
+    rows.appendChild(tr);
+  }
+  $('count').textContent = shown + ' of ' + ENTITIES.length + ' shown';
+  rows.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => openModal(Number(b.dataset.id))));
+}
+
+function esc(s) { return (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+// Current selection {entityId, entityName, reason, since}. Saved locally when a vote is cast;
+// there is no read-back endpoint — this device remembers its own choice.
+let MY = JSON.parse(localStorage.getItem('mySelection') || 'null');
+function currentSelectionId() { return MY ? MY.entityId : null; }
+
+function setMy(sel) {
+  MY = sel;
+  if (sel) localStorage.setItem('mySelection', JSON.stringify(sel));
+  else localStorage.removeItem('mySelection');
+  renderMe();
+}
+
+function renderMe() {
+  const box = $('me');
+  if (MY) {
+    const since = new Date(MY.since).toLocaleString();
+    box.classList.remove('empty');
+    box.innerHTML = `<b>Your selection</b>` +
+      `<span class="name">${esc(MY.entityName)}</span>` +
+      `<span class="since">since ${esc(since)}</span>`;
+  } else {
+    box.classList.add('empty');
+    box.textContent = 'Read-only view. No active selection.';
+  }
+}
+
+// ---- Modal flow ----
+function openModal(entityId) {
+  target = ENTITIES.find(e => e.id === entityId);
+  if (!target) return;
+  $('m-target').textContent = 'You are selecting: ' + entityLabel(target);
+  $('reason').value = (MY && MY.entityId === entityId) ? (MY.reason || '') : '';
+
+  const change = $('m-change');
+  if (MY && MY.entityId !== entityId) {
+    change.classList.remove('hidden');
+    change.textContent = 'This will REPLACE your current selection (' + MY.entityName + '). You only get one.';
+  } else { change.classList.add('hidden'); }
+
+  // If we already have a valid token, skip straight to casting.
+  if (token) { stage = 'cast'; } else { stage = 'mobile'; }
+  syncStage();
+  $('m-msg').textContent = '';
+  $('overlay').classList.add('open');
+}
+
+function syncStage() {
+  $('step-mobile').classList.toggle('hidden', stage !== 'mobile');
+  $('step-otp').classList.toggle('hidden', stage !== 'otp');
+  if (stage === 'mobile') { $('m-primary').textContent = 'Send OTP'; $('m-title').textContent = 'Verify mobile'; }
+  else if (stage === 'otp') { $('m-primary').textContent = 'Verify OTP'; $('m-title').textContent = 'Enter OTP'; }
+  else { $('m-primary').textContent = 'Cast vote'; $('m-title').textContent = 'Confirm selection'; }
+}
+
+function closeModal() { $('overlay').classList.remove('open'); }
+
+async function onPrimary() {
+  const msg = $('m-msg');
+  const reason = $('reason').value.trim();
+  if (reason.length < 5) { msg.textContent = 'Reason must be at least 5 characters.'; return; }
+
+  if (stage === 'mobile') {
+    const mobile = $('mobile').value.trim();
+    if (!mobile) { msg.textContent = 'Enter your mobile number.'; return; }
+    msg.textContent = 'Sending OTP…';
+    const r = await api('/otp/request', json({ mobile }));
+    if (!r.ok) { msg.textContent = (r.body && r.body.error) || 'Failed to send OTP.'; return; }
+    window._mobile = mobile;
+    stage = 'otp'; syncStage();
+    msg.textContent = 'OTP sent. Check the server console (mock delivery).';
+    return;
+  }
+
+  if (stage === 'otp') {
+    const code = $('otp').value.trim();
+    if (!code) { msg.textContent = 'Enter the OTP.'; return; }
+    msg.textContent = 'Verifying…';
+    const r = await api('/otp/verify', json({ mobile: window._mobile, code }));
+    if (!r.ok) { msg.textContent = (r.body && r.body.error) || 'Invalid OTP.'; return; }
+    token = r.body.token;
+    localStorage.setItem('voteToken', token);
+    // Verified — cast straight away using the reason already entered.
+    await castVote(reason);
+    return;
+  }
+
+  // stage === 'cast'
+  await castVote(reason);
+}
+
+/**
+ * Casts/changes the vote. If the token is missing or expired the server returns 401 —
+ * we don't treat that as an error, we just send a fresh OTP so the user can verify and continue.
+ */
+async function castVote(reason) {
+  const msg = $('m-msg');
+  if (!token) { await startOtp(); return; }
+  msg.textContent = 'Casting…';
+  const r = await api('/vote', json({ token, entityId: target.id, reason }));
+  if (r.ok) {
+    setMy(r.body);   // server returns the resulting selection
+    closeModal();
+    await loadEntities();
+    return;
+  }
+  if (r.status === 401) {           // token gone/expired — re-verify, no scary error
+    token = null; localStorage.removeItem('voteToken');
+    await startOtp();
+    return;
+  }
+  msg.textContent = (r.body && r.body.error) || 'Could not cast vote.';
+}
+
+/** Switches the modal to the mobile step and (if a number is known) sends an OTP. */
+async function startOtp() {
+  const msg = $('m-msg');
+  stage = 'mobile'; syncStage();
+  msg.textContent = 'Please verify your mobile number to continue.';
+  $('mobile').focus();
+}
+
+function json(obj) {
+  return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) };
+}
+
+$('m-cancel').addEventListener('click', closeModal);
+$('m-primary').addEventListener('click', onPrimary);
+$('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+$('filter').addEventListener('input', render);
+
+async function loadIssues() {
+  const r = await api('/issues');
+  const box = $('issues');
+  const items = (r.body || []);
+  if (!items.length) { box.querySelector('.placeholder').textContent = 'No issues reported yet.'; return; }
+  const max = items[0].votes || 1;
+  box.innerHTML = '<h2>Top reported issues</h2>' + items.map(it =>
+    `<div class="issue">` +
+      `<div class="issue-head"><span>${esc(it.reason)}</span><b>${it.votes}</b></div>` +
+      `<div class="bar"><span style="width:${Math.max(4, Math.round(100*it.votes/max))}%"></span></div>` +
+    `</div>`).join('');
+}
+
+function renderStats() {
+  // Dummy numbers for now — wire to real aggregates later.
+  const rows = [
+    ['Responses today', '4,812'],
+    ['Live right now', '137'],
+    ['Last month', '128,940'],
+    ['Month over month', '+18.4%'],
+  ];
+  $('stats').innerHTML = '<h2>Live stats</h2>' + rows.map(([k,v]) =>
+    `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
+}
+
+loadEntities();
+loadIssues();
+renderStats();
+renderMe();
+</script>
+</body>
+</html>

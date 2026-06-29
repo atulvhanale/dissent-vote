@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: dissent-postgres
+    environment:
+      POSTGRES_DB: dissent
+      POSTGRES_USER: dissent
+      POSTGRES_PASSWORD: dissent
+    ports:
+      - "5432:5432"
+    volumes:
+      - dissent_pgdata:/var/lib/postgresql/data
+
+volumes:
+  dissent_pgdata:
