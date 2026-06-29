@@ -107,12 +107,13 @@ public class VoteRepository {
 
     public MySelection findSelection(String mobile) {
         return jdbc.query(
-            "SELECT v.entity_id, e.name, v.reason, v.created_at " +
+            "SELECT v.entity_id, e.name, e.type, v.reason, v.created_at " +
             "FROM vote v JOIN entity e ON e.id = v.entity_id WHERE v.mobile = ?",
             rs -> rs.next()
                 ? new MySelection(
                     rs.getLong("entity_id"),
                     rs.getString("name"),
+                    rs.getString("type"),
                     rs.getString("reason"),
                     rs.getObject("created_at", OffsetDateTime.class))
                 : null,

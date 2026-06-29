@@ -15,7 +15,7 @@ public class Dtos {
 
     public record CastRequest(String token, long entityId, String reason) {}
 
-    public record MySelection(long entityId, String entityName, String reason, OffsetDateTime since) {}
+    public record MySelection(long entityId, String entityName, String entityType, String reason, OffsetDateTime since) {}
 
     public record Issue(String reason, long votes) {}
 

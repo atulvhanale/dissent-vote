@@ -26,6 +26,7 @@
   }
   #me b { display: block; }
   #me .name { display: block; }
+  #me .etype { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
   #me .since { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
   #me.empty { color: var(--muted); font-size: 11px; }
 
@@ -245,7 +246,7 @@ function render() {
 
 function esc(s) { return (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-// Current selection {entityId, entityName, reason, since}. Saved locally when a vote is cast;
+// Current selection {entityId, entityName, entityType, reason, since}. Saved locally when a vote is cast;
 // there is no read-back endpoint — this device remembers its own choice.
 let MY = JSON.parse(localStorage.getItem('mySelection') || 'null');
 function currentSelectionId() { return MY ? MY.entityId : null; }
@@ -264,6 +265,7 @@ function renderMe() {
     box.classList.remove('empty');
     box.innerHTML = `<b>Your selection</b>` +
       `<span class="name">${esc(MY.entityName)}</span>` +
+      `<span class="etype">${esc(typeLabel(MY.entityType))}</span>` +
       `<span class="since">since ${esc(since)}</span>`;
   } else {
     box.classList.add('empty');
