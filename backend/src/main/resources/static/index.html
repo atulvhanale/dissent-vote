@@ -72,6 +72,9 @@
   th { border-bottom: 2px solid var(--line); text-transform: uppercase; font-size: 12px; }
   tr.type-PARTY td { background: #f2f2f2; font-weight: bold; }
   tr.type-PM td { background: #e6e6e6; font-weight: bold; }
+  tr.important td { border-top: 1px solid var(--line); }
+  tr.important td:first-child { border-left: 3px solid var(--line); }
+  .imp { text-align: center; font-size: 14px; width: 70px; }
   .votes { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   button {
     font-family: inherit; font-size: 13px; border: 1px solid var(--line);
@@ -125,7 +128,7 @@
     </div>
     <table>
       <thead>
-        <tr><th>Name</th><th>Type</th><th>Party</th><th>Constituency</th><th class="votes">Dissent Votes</th><th></th></tr>
+        <tr><th>Important</th><th>Name</th><th>Type</th><th>Party</th><th>Constituency</th><th class="votes">Dissent Votes</th><th></th></tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
@@ -228,9 +231,10 @@ function render() {
     if (q && !hay.includes(q)) continue;
     shown++;
     const tr = document.createElement('tr');
-    tr.className = 'type-' + e.type;
+    tr.className = 'type-' + e.type + (e.important ? ' important' : '');
     const isSel = sel === e.id;
     tr.innerHTML =
+      `<td class="imp">${e.important ? '★' : ''}</td>` +
       `<td>${esc(e.name)}</td>` +
       `<td>${esc(typeLabel(e.type))}</td>` +
       `<td>${esc(e.party || (e.type==='PARTY'?'—':''))}</td>` +

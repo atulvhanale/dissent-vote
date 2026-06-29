@@ -2,6 +2,7 @@ package com.dissent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,8 +18,11 @@ import java.util.Set;
 
 /**
  * Seeds the entity table from members.csv (real 18th Lok Sabha MPs + Union Council of
- * Ministers + PM) when the table is empty. Order of insertion (= sort_order) is:
- * distinct parties, then the PM, then ministers, then MPs. Vote ranking happens at query time.
+ * Ministers + PM) when the table is empty.
+ *
+ * Three entities are marked "important" and pinned to the top in a fixed order: the
+ * governing party, the main opposition party, then the PM. Everyone else (remaining parties,
+ * ministers, MPs) follows and is ranked by dissent votes at query time.
  */
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -26,8 +30,15 @@ public class DataSeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
     private final JdbcTemplate jdbc;
 
-    public DataSeeder(JdbcTemplate jdbc) {
+    private final String govtParty;
+    private final String oppositionParty;
+
+    public DataSeeder(JdbcTemplate jdbc,
+                      @Value("${app.govt-party:BJP}") String govtParty,
+                      @Value("${app.opposition-party:INC}") String oppositionParty) {
         this.jdbc = jdbc;
+        this.govtParty = govtParty;
+        this.oppositionParty = oppositionParty;
     }
 
     @Override
@@ -46,28 +57,45 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         int order = 0;
-        // 1) Parties (alphabetical for a stable, readable list)
+
+        // Important block, fixed order: governing party (1), opposition party (2), PM (3).
+        boolean govtSeen = parties.contains(govtParty);
+        boolean oppSeen = parties.contains(oppositionParty);
+        if (govtSeen) insert("PARTY", govtParty, null, null, true, ++order);
+        else log.warn("Governing party '{}' not found in members.csv", govtParty);
+        if (oppSeen) insert("PARTY", oppositionParty, null, null, true, ++order);
+        else log.warn("Opposition party '{}' not found in members.csv", oppositionParty);
+        for (String[] m : members) {
+            if (m[0].equals("PM")) {
+                insert("PM", m[1], blankToNull(m[2]), blankToNull(m[3]), true, ++order);
+            }
+        }
+
+        // Remaining parties (alphabetical), excluding the two already pinned above.
         List<String> sortedParties = new ArrayList<>(parties);
         sortedParties.sort(String::compareToIgnoreCase);
         for (String p : sortedParties) {
-            insert("PARTY", p, null, null, ++order);
+            if (p.equals(govtParty) || p.equals(oppositionParty)) continue;
+            insert("PARTY", p, null, null, false, ++order);
         }
-        // 2) PM, 3) Ministers, 4) MPs — in that block order
-        for (String type : new String[]{"PM", "MINISTER", "MP"}) {
+        // Ministers then MPs (not important; ranked by votes at query time).
+        for (String type : new String[]{"MINISTER", "MP"}) {
             for (String[] m : members) {
                 if (m[0].equals(type)) {
-                    insert(type, m[1], blankToNull(m[2]), blankToNull(m[3]), ++order);
+                    insert(type, m[1], blankToNull(m[2]), blankToNull(m[3]), false, ++order);
                 }
             }
         }
-        log.info("Seeded {} entities ({} parties + PM/ministers/MPs) from members.csv",
-                order, sortedParties.size());
+        log.info("Seeded {} entities (important: {} + {} + PM) from members.csv",
+                order, govtSeen ? govtParty : "—", oppSeen ? oppositionParty : "—");
     }
 
-    private void insert(String type, String name, String party, String detail, int order) {
+    private void insert(String type, String name, String party, String detail,
+                        boolean important, int order) {
         jdbc.update(
-            "INSERT INTO entity (type, name, party_name, department, sort_order) VALUES (?, ?, ?, ?, ?)",
-            type, name, party, detail, order);
+            "INSERT INTO entity (type, name, party_name, department, important, sort_order) " +
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            type, name, party, detail, important, order);
     }
 
     private static String blankToNull(String s) {

@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 /** Request/response payloads. Kept in one file to stay compact for the MVP. */
 public class Dtos {
 
-    public record EntityRow(long id, String type, String name, String party, String department, long votes) {}
+    public record EntityRow(long id, String type, String name, String party, String department, boolean important, long votes) {}
 
     public record OtpRequest(String mobile) {}
 

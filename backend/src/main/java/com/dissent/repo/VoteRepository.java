@@ -20,19 +20,20 @@ public class VoteRepository {
     }
 
     /**
-     * Entities with their live vote counts. Parties first (fixed order), then the PM,
-     * then all other members (Minister/MP/MLA) ranked by dissent votes descending
-     * (ties broken by sort_order).
+     * Entities with their live vote counts. Important entities first — the governing party,
+     * the opposition party, then the PM — in a fixed order (sort_order). Everyone else
+     * (parties, ministers, MPs) follows, ranked by dissent votes descending.
      */
     public List<EntityRow> listEntities() {
         return jdbc.query(
-            "SELECT e.id, e.type, e.name, e.party_name, e.department, " +
+            "SELECT e.id, e.type, e.name, e.party_name, e.department, e.important, " +
             "       COALESCE(c.cnt, 0) AS votes " +
             "FROM entity e " +
             "LEFT JOIN (SELECT entity_id, COUNT(*) cnt FROM vote GROUP BY entity_id) c " +
             "       ON c.entity_id = e.id " +
-            "ORDER BY CASE e.type WHEN 'PARTY' THEN 0 WHEN 'PM' THEN 1 ELSE 2 END, " +
-            "         CASE WHEN e.type NOT IN ('PARTY','PM') THEN COALESCE(c.cnt, 0) END DESC, " +
+            "ORDER BY e.important DESC, " +                                  // important block on top
+            "         CASE WHEN e.important THEN e.sort_order END, " +       // fixed order within it
+            "         COALESCE(c.cnt, 0) DESC, " +                           // rest by dissent votes
             "         e.sort_order",
             (rs, i) -> new EntityRow(
                 rs.getLong("id"),
@@ -40,6 +41,7 @@ public class VoteRepository {
                 rs.getString("name"),
                 rs.getString("party_name"),
                 rs.getString("department"),
+                rs.getBoolean("important"),
                 rs.getLong("votes")));
     }
 

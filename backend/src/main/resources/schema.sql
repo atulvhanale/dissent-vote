@@ -1,11 +1,12 @@
 -- Voting entities: parties, the PM, and MPs. A single table so a vote can target any of them.
 CREATE TABLE IF NOT EXISTS entity (
     id          BIGSERIAL PRIMARY KEY,
-    type        VARCHAR(10) NOT NULL,            -- PARTY | PM | MP
+    type        VARCHAR(10) NOT NULL,            -- PARTY | PM | MINISTER | MP
     name        VARCHAR(200) NOT NULL,
-    party_name  VARCHAR(200),                    -- for MP / PM rows
-    department  VARCHAR(200),                    -- for MP rows
-    sort_order  INT NOT NULL DEFAULT 0
+    party_name  VARCHAR(200),                    -- for MP / PM / minister rows
+    department  VARCHAR(200),                    -- constituency / portfolio detail
+    important   BOOLEAN NOT NULL DEFAULT FALSE,  -- govt party, opposition party, PM: pinned to the top
+    sort_order  INT NOT NULL DEFAULT 0           -- fixed order among important rows; tie-break otherwise
 );
 
 -- One vote per mobile number, ever. Changing the selection updates this row.
