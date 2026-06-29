@@ -45,13 +45,43 @@ public class VoteRepository {
                 rs.getLong("votes")));
     }
 
-    /** Reasons grouped (case-insensitive, trimmed) by how many people gave them, highest first. */
+    /** Issues for the left panel: grouped by the canonical bullet (falling back to raw reason). */
     public List<Issue> topIssues(int limit) {
         return jdbc.query(
-            "SELECT INITCAP(TRIM(reason)) AS reason, COUNT(*) AS votes " +
-            "FROM vote GROUP BY INITCAP(TRIM(reason)) ORDER BY votes DESC LIMIT ?",
+            "SELECT COALESCE(NULLIF(TRIM(bullet), ''), INITCAP(TRIM(reason))) AS reason, " +
+            "       COUNT(*) AS votes " +
+            "FROM vote " +
+            "GROUP BY COALESCE(NULLIF(TRIM(bullet), ''), INITCAP(TRIM(reason))) " +
+            "ORDER BY votes DESC LIMIT ?",
             (rs, i) -> new Issue(rs.getString("reason"), rs.getLong("votes")),
             limit);
+    }
+
+    // ----- Bullets (canonical issue suggestions) -----
+
+    /** All known bullets, most popular first (popularity = how many votes reference them). */
+    public List<String> allBullets() {
+        return jdbc.query(
+            "SELECT b.text FROM bullet b " +
+            "LEFT JOIN (SELECT bullet, COUNT(*) c FROM vote GROUP BY bullet) v ON v.bullet = b.text " +
+            "ORDER BY COALESCE(v.c, 0) DESC, b.text",
+            (rs, i) -> rs.getString("text"));
+    }
+
+    /** Bullets matching a typeahead query (case-insensitive substring), popular first. */
+    public List<String> searchBullets(String q, int limit) {
+        return jdbc.query(
+            "SELECT b.text FROM bullet b " +
+            "LEFT JOIN (SELECT bullet, COUNT(*) c FROM vote GROUP BY bullet) v ON v.bullet = b.text " +
+            "WHERE b.text ILIKE ? " +
+            "ORDER BY COALESCE(v.c, 0) DESC, b.text LIMIT ?",
+            (rs, i) -> rs.getString("text"),
+            "%" + q + "%", limit);
+    }
+
+    /** Inserts a bullet if it's new (case-insensitive); no-op if it already exists. */
+    public void ensureBullet(String text) {
+        jdbc.update("INSERT INTO bullet (text) VALUES (?) ON CONFLICT (text) DO NOTHING", text);
     }
 
     public boolean entityExists(long entityId) {
@@ -98,13 +128,14 @@ public class VoteRepository {
 
     // ----- Vote -----
 
-    /** One row per mobile; changing selection overwrites it. */
-    public void upsertVote(String mobile, long entityId, String reason) {
+    /** One row per mobile; changing selection overwrites it. {@code bullet} may be null. */
+    public void upsertVote(String mobile, long entityId, String reason, String bullet) {
         jdbc.update(
-            "INSERT INTO vote (mobile, entity_id, reason, created_at) VALUES (?, ?, ?, now()) " +
+            "INSERT INTO vote (mobile, entity_id, reason, bullet, created_at) " +
+            "VALUES (?, ?, ?, ?, now()) " +
             "ON CONFLICT (mobile) DO UPDATE SET entity_id = EXCLUDED.entity_id, " +
-            "       reason = EXCLUDED.reason, created_at = now()",
-            mobile, entityId, reason);
+            "       reason = EXCLUDED.reason, bullet = EXCLUDED.bullet, created_at = now()",
+            mobile, entityId, reason, bullet);
     }
 
     public MySelection findSelection(String mobile) {

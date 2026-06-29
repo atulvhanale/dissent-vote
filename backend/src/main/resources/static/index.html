@@ -96,6 +96,12 @@
   .modal input, .modal textarea { width: 100%; font-family: inherit; font-size: 14px;
     border: 1px solid var(--line); padding: 8px; background: var(--bg); color: var(--line); }
   .modal textarea { min-height: 70px; resize: vertical; }
+  .suggest { border: 1px solid var(--line); border-top: 0; max-height: 160px; overflow-y: auto; }
+  .suggest button { display: block; width: 100%; text-align: left; border: 0;
+    border-bottom: 1px solid #ddd; padding: 7px 9px; font-size: 13px; background: var(--bg); cursor: pointer; }
+  .suggest button:last-child { border-bottom: 0; }
+  .suggest button:hover { background: var(--line); color: var(--bg); }
+  .hint { color: var(--muted); font-size: 11px; margin-top: 5px; }
   .modal .actions { display: flex; justify-content: space-between; margin-top: 14px; }
   .msg { font-size: 12px; margin-top: 8px; min-height: 16px; }
   .warn { border-left: 3px solid var(--line); padding-left: 8px; }
@@ -166,7 +172,9 @@
     <!-- Reason -->
     <div class="row">
       <label for="reason">Why won't you vote for them? (min 5 chars)</label>
-      <textarea id="reason" maxlength="500"></textarea>
+      <textarea id="reason" maxlength="500" autocomplete="off"></textarea>
+      <div id="suggest" class="suggest hidden"></div>
+      <div class="hint">Tip: pick a suggested issue, or write your own — we group similar reasons together.</div>
     </div>
 
     <!-- Mobile + OTP -->
@@ -291,6 +299,7 @@ function openModal(entityId) {
   if (token) { stage = 'cast'; } else { stage = 'mobile'; }
   syncStage();
   $('m-msg').textContent = '';
+  $('suggest').classList.add('hidden');
   $('overlay').classList.add('open');
 }
 
@@ -377,6 +386,29 @@ $('m-cancel').addEventListener('click', closeModal);
 $('m-primary').addEventListener('click', onPrimary);
 $('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
 $('filter').addEventListener('input', render);
+
+// ---- Reason typeahead: suggest pre-made bullets as the user types (local match, no AI per key) ----
+let suggestTimer = null;
+async function loadSuggestions() {
+  const q = $('reason').value.trim();
+  const r = await api('/bullets?q=' + encodeURIComponent(q));
+  const items = (r.body || []).filter(b => b.toLowerCase() !== q.toLowerCase()).slice(0, 8);
+  const box = $('suggest');
+  if (!items.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.innerHTML = items.map(b => `<button type="button" data-b="${esc(b)}">${esc(b)}</button>`).join('');
+  box.classList.remove('hidden');
+  box.querySelectorAll('button').forEach(btn =>
+    btn.addEventListener('click', () => {
+      $('reason').value = btn.dataset.b;
+      box.classList.add('hidden');
+      $('reason').focus();
+    }));
+}
+$('reason').addEventListener('input', () => {
+  clearTimeout(suggestTimer);
+  suggestTimer = setTimeout(loadSuggestions, 180);   // debounce
+});
+$('reason').addEventListener('focus', loadSuggestions);
 
 async function loadIssues() {
   const r = await api('/issues');

@@ -33,6 +33,12 @@ public class VoteController {
         return service.topIssues();
     }
 
+    /** Public, read-only: bullet suggestions for the reason typeahead (local substring match). */
+    @GetMapping("/bullets")
+    public List<String> bullets(@RequestParam(name = "q", required = false) String q) {
+        return service.suggestBullets(q);
+    }
+
     /** Step 1: request an OTP for a mobile number. */
     @PostMapping("/otp/request")
     public ResponseEntity<?> requestOtp(@RequestBody OtpRequest req) {

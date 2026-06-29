@@ -23,13 +23,16 @@ public class VoteService {
     private static final SecureRandom RNG = new SecureRandom();
 
     private final VoteRepository repo;
+    private final AiBulletService ai;
     private final int otpValidityMinutes;
     private final int tokenValidityMinutes;
 
     public VoteService(VoteRepository repo,
+                       AiBulletService ai,
                        @Value("${app.otp.validity-minutes}") int otpValidityMinutes,
                        @Value("${app.token.validity-minutes}") int tokenValidityMinutes) {
         this.repo = repo;
+        this.ai = ai;
         this.otpValidityMinutes = otpValidityMinutes;
         this.tokenValidityMinutes = tokenValidityMinutes;
     }
@@ -40,6 +43,12 @@ public class VoteService {
 
     public List<Issue> topIssues() {
         return repo.topIssues(10);
+    }
+
+    /** Bullet suggestions for typeahead — local substring match, no AI call per keystroke. */
+    public List<String> suggestBullets(String q) {
+        if (q == null || q.isBlank()) return repo.allBullets();
+        return repo.searchBullets(q.trim(), 8);
     }
 
     /** Generates a 6-digit OTP, stores it, and (mock) prints it to the server console. */
@@ -69,10 +78,11 @@ public class VoteService {
     public static final String TOKEN_INVALID = "TOKEN_INVALID";
 
     /**
-     * Casts (or changes) a vote using a valid token.
+     * Casts (or changes) a vote using a valid token. The free-text reason is summarised by the
+     * AI agent into a canonical bullet (reusing an existing one when similar, else coining a new
+     * one); when the AI is disabled the raw reason is stored as-is.
      * @return null on success, {@link #TOKEN_INVALID} if the token is bad, otherwise an error message.
      */
-    @Transactional
     public String castVote(String token, long entityId, String reason) {
         // Validate the reason first so a too-short reason is always a 400, regardless of token state.
         if (reason == null || reason.trim().length() < 5) {
@@ -85,7 +95,14 @@ public class VoteService {
         if (!repo.entityExists(entityId)) {
             return "Selected entity does not exist.";
         }
-        repo.upsertVote(mobile, entityId, reason.trim());
+        String trimmed = reason.trim();
+        // The AI summarisation makes a network call, so it runs here rather than inside a
+        // transaction. Each repo write below is its own auto-committed statement.
+        String bullet = ai.summarizeToBullet(trimmed, repo.allBullets());
+        if (bullet != null && !bullet.isBlank()) {
+            repo.ensureBullet(bullet);   // register a newly coined bullet for future typeahead
+        }
+        repo.upsertVote(mobile, entityId, trimmed, bullet);
         return null;
     }
 

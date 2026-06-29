@@ -88,6 +88,30 @@ public class DataSeeder implements CommandLineRunner {
         }
         log.info("Seeded {} entities (important: {} + {} + PM) from members.csv",
                 order, govtSeen ? govtParty : "—", oppSeen ? oppositionParty : "—");
+
+        seedBullets();
+    }
+
+    /** Test bullets so typeahead and the dashboard have something to show before any AI runs. */
+    private void seedBullets() {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM bullet", Integer.class);
+        if (n != null && n > 0) return;
+        String[] bullets = {
+            "Failed to deliver on promises",
+            "Ignored local issues",
+            "Poor handling of the economy",
+            "Mishandled public funds",
+            "Out of touch with constituents",
+            "Weak stance on jobs and unemployment",
+            "Did nothing on healthcare",
+            "Broke campaign pledges",
+            "Unresponsive to complaints",
+            "Rising prices and cost of living",
+        };
+        for (String b : bullets) {
+            jdbc.update("INSERT INTO bullet (text) VALUES (?) ON CONFLICT (text) DO NOTHING", b);
+        }
+        log.info("Seeded {} starter bullets", bullets.length);
     }
 
     private void insert(String type, String name, String party, String detail,
