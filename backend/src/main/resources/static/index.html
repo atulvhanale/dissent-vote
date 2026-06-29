@@ -106,7 +106,7 @@
 <header>
   <div class="header-center">
     <h1>notmyvote.in</h1>
-    <div class="sub">Pick ONE party, the PM, or an MP you won't vote for next election. One choice per person.</div>
+    <div class="sub">Pick ONE party, the PM, a minister or an MP you won't vote for next election. One choice per person.</div>
   </div>
   <div id="me" class="empty">Read-only view. No active selection.</div>
 </header>
@@ -125,7 +125,7 @@
     </div>
     <table>
       <thead>
-        <tr><th>Name</th><th>Type</th><th>Party</th><th>Department</th><th class="votes">Votes</th><th></th></tr>
+        <tr><th>Name</th><th>Type</th><th>Party</th><th>Constituency</th><th class="votes">Dissent Votes</th><th></th></tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
@@ -141,7 +141,7 @@
     <aside id="howto">
       <h2>How it works</h2>
       <ul class="rules">
-        <li>Pick <b>one</b> party, the PM, a minister, an MP or an MLA you won't vote for.</li>
+        <li>Pick <b>one</b> party, the PM, a minister or an MP you won't vote for.</li>
         <li>Add a short reason (min 5 chars) so it's a serious choice.</li>
         <li>Verify your mobile with an OTP — no account, no login.</li>
         <li>One choice per person. Changing it replaces the old one.</li>
@@ -236,7 +236,7 @@ function render() {
       `<td>${esc(e.party || (e.type==='PARTY'?'—':''))}</td>` +
       `<td>${esc(e.department || '—')}</td>` +
       `<td class="votes">${e.votes}</td>` +
-      `<td><button data-id="${e.id}" class="${isSel?'selected':''}">${isSel?'Selected':'Select'}</button></td>`;
+      `<td><button data-id="${e.id}" class="${isSel?'selected':''}">${isSel?'Your dissent':'Dissent vote'}</button></td>`;
     rows.appendChild(tr);
   }
   $('count').textContent = shown + ' of ' + ENTITIES.length + ' shown';
@@ -298,7 +298,7 @@ function syncStage() {
   $('step-otp').classList.toggle('hidden', stage !== 'otp');
   if (stage === 'mobile') { $('m-primary').textContent = 'Send OTP'; $('m-title').textContent = 'Verify mobile'; }
   else if (stage === 'otp') { $('m-primary').textContent = 'Verify OTP'; $('m-title').textContent = 'Enter OTP'; }
-  else { $('m-primary').textContent = 'Cast vote'; $('m-title').textContent = 'Confirm selection'; }
+  else { $('m-primary').textContent = 'Cast dissent vote'; $('m-title').textContent = 'Confirm selection'; }
 }
 
 function closeModal() { $('overlay').classList.remove('open'); }
