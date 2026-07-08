@@ -30,16 +30,14 @@
   #me .since { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
   #me.empty { color: var(--muted); font-size: 11px; }
 
-  /* 3-column layout: left = top issues, center = list, right = live stats.
-     Equal-width gutters and a centred max-width keep the side panels equidistant. */
+  /* 2-column layout: left = list, right = live stats. */
   .layout {
-    display: grid; grid-template-columns: 240px minmax(0, 1fr) 240px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 240px;
     gap: 24px; align-items: start; padding: 24px; max-width: 1280px; margin: 0 auto;
   }
   aside { border: 1px solid var(--line); padding: 12px; }
   /* Right rail stacks the stats + how-it-works panels; sticky as a group. */
   .rail { display: flex; flex-direction: column; gap: 24px; position: sticky; top: 96px; }
-  #issues { position: sticky; top: 96px; }
   .rules { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.45; }
   .rules li { margin-bottom: 6px; }
   .share-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; }
@@ -47,12 +45,6 @@
   .share-note p:last-child { margin-bottom: 0; }
   aside h2 { font-size: 12px; margin: 0 0 8px; text-transform: uppercase; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
   aside .placeholder { color: var(--muted); font-size: 11px; }
-  .issue { margin-bottom: 10px; }
-  .issue-head { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; }
-  .issue-head span { line-height: 1.2; }
-  .issue-head b { font-variant-numeric: tabular-nums; }
-  .bar { height: 5px; border: 1px solid var(--line); margin-top: 3px; }
-  .bar span { display: block; height: 100%; background: var(--line); }
   .stat { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 0; border-bottom: 1px dotted var(--line); }
   .stat:last-child { border-bottom: 0; }
   .stat b { font-variant-numeric: tabular-nums; }
@@ -96,11 +88,6 @@
   .modal input, .modal textarea { width: 100%; font-family: inherit; font-size: 14px;
     border: 1px solid var(--line); padding: 8px; background: var(--bg); color: var(--line); }
   .modal textarea { min-height: 70px; resize: vertical; }
-  .suggest { border: 1px solid var(--line); border-top: 0; max-height: 160px; overflow-y: auto; }
-  .suggest button { display: block; width: 100%; text-align: left; border: 0;
-    border-bottom: 1px solid #ddd; padding: 7px 9px; font-size: 13px; background: var(--bg); cursor: pointer; }
-  .suggest button:last-child { border-bottom: 0; }
-  .suggest button:hover { background: var(--line); color: var(--bg); }
   .hint { color: var(--muted); font-size: 11px; margin-top: 5px; }
   .modal .actions { display: flex; justify-content: space-between; margin-top: 14px; }
   .msg { font-size: 12px; margin-top: 8px; min-height: 16px; }
@@ -118,12 +105,6 @@
 </header>
 
 <div class="layout">
-  <!-- Left: consolidated list of the biggest reported issues + votes (coming soon). -->
-  <aside id="issues">
-    <h2>Top reported issues</h2>
-    <div class="placeholder">Coming soon — a consolidated list of the biggest issues people reported, with how many votes each received.</div>
-  </aside>
-
   <main>
     <div class="controls">
       <input type="search" id="filter" placeholder="Filter by name, party or department…">
@@ -173,8 +154,7 @@
     <div class="row">
       <label for="reason">Why won't you vote for them? (min 5 chars)</label>
       <textarea id="reason" maxlength="500" autocomplete="off"></textarea>
-      <div id="suggest" class="suggest hidden"></div>
-      <div class="hint">Tip: pick a suggested issue, or write your own — we group similar reasons together.</div>
+      <div class="hint">Share your reason — we group similar issues together.</div>
     </div>
 
     <!-- Mobile + OTP -->
@@ -299,7 +279,6 @@ function openModal(entityId) {
   if (token) { stage = 'cast'; } else { stage = 'mobile'; }
   syncStage();
   $('m-msg').textContent = '';
-  $('suggest').classList.add('hidden');
   $('overlay').classList.add('open');
 }
 
@@ -387,42 +366,6 @@ $('m-primary').addEventListener('click', onPrimary);
 $('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
 $('filter').addEventListener('input', render);
 
-// ---- Reason typeahead: suggest pre-made bullets as the user types (local match, no AI per key) ----
-let suggestTimer = null;
-async function loadSuggestions() {
-  const q = $('reason').value.trim();
-  const r = await api('/bullets?q=' + encodeURIComponent(q));
-  const items = (r.body || []).filter(b => b.toLowerCase() !== q.toLowerCase()).slice(0, 8);
-  const box = $('suggest');
-  if (!items.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
-  box.innerHTML = items.map(b => `<button type="button" data-b="${esc(b)}">${esc(b)}</button>`).join('');
-  box.classList.remove('hidden');
-  box.querySelectorAll('button').forEach(btn =>
-    btn.addEventListener('click', () => {
-      $('reason').value = btn.dataset.b;
-      box.classList.add('hidden');
-      $('reason').focus();
-    }));
-}
-$('reason').addEventListener('input', () => {
-  clearTimeout(suggestTimer);
-  suggestTimer = setTimeout(loadSuggestions, 180);   // debounce
-});
-$('reason').addEventListener('focus', loadSuggestions);
-
-async function loadIssues() {
-  const r = await api('/issues');
-  const box = $('issues');
-  const items = (r.body || []);
-  if (!items.length) { box.querySelector('.placeholder').textContent = 'No issues reported yet.'; return; }
-  const max = items[0].votes || 1;
-  box.innerHTML = '<h2>Top reported issues</h2>' + items.map(it =>
-    `<div class="issue">` +
-      `<div class="issue-head"><span>${esc(it.reason)}</span><b>${it.votes}</b></div>` +
-      `<div class="bar"><span style="width:${Math.max(4, Math.round(100*it.votes/max))}%"></span></div>` +
-    `</div>`).join('');
-}
-
 function renderStats() {
   // Dummy numbers for now — wire to real aggregates later.
   const rows = [
@@ -436,7 +379,6 @@ function renderStats() {
 }
 
 loadEntities();
-loadIssues();
 renderStats();
 renderMe();
 </script>
