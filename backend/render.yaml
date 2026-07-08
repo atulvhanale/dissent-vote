@@ -1,7 +1,7 @@
 services:
   - type: web
     name: dissent-vote
-    runtime: java
+    env: java
     buildCommand: mvn clean package -DskipTests
     startCommand: java -jar target/dissent-vote-1.0.0.jar
     envVars:
@@ -18,7 +18,7 @@ services:
           name: dissent-db
           property: password
       - key: ANTHROPIC_API_KEY
-        sync: false  # You'll set this manually in Render dashboard
+        sync: false
 
 databases:
   - name: dissent-db
