@@ -3,6 +3,7 @@ services:
     name: dissent-vote
     runtime: docker
     dockerfilePath: ./Dockerfile
+    plan: free
     envVars:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
@@ -23,3 +24,4 @@ databases:
   - name: dissent-db
     databaseName: dissent
     user: dissent
+    plan: free
