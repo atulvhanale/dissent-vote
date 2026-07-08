@@ -101,10 +101,13 @@ public class VoteRepository {
 
     /** Returns true if a non-expired OTP matches. */
     public boolean otpValid(String mobile, String code) {
-        Integer n = jdbc.queryForObject(
-            "SELECT COUNT(*) FROM otp WHERE mobile = ? AND code = ? AND expires_at > now()",
-            Integer.class, mobile, code);
-        return n != null && n > 0;
+        // TEMPORARY (testing): real SMS delivery isn't wired up yet, so any non-blank
+        // mobile + code is accepted. Revert this to the query below once SMS is live.
+        return code != null && !code.isBlank();
+        // Integer n = jdbc.queryForObject(
+        //     "SELECT COUNT(*) FROM otp WHERE mobile = ? AND code = ? AND expires_at > now()",
+        //     Integer.class, mobile, code);
+        // return n != null && n > 0;
     }
 
     public void deleteOtp(String mobile) {

@@ -157,13 +157,19 @@
       <div class="hint">Share your reason — we group similar issues together.</div>
     </div>
 
+    <!-- Testing notice: SMS delivery isn't live yet. -->
+    <div class="row warn" id="test-note">
+      <b>Testing mode:</b> SMS isn't set up yet, so any mobile number and any OTP will work.
+      This is temporary and will be fixed soon.
+    </div>
+
     <!-- Mobile + OTP -->
     <div class="row" id="step-mobile">
       <label for="mobile">Mobile number</label>
       <input type="text" id="mobile" placeholder="e.g. +911234567890" autocomplete="tel">
     </div>
     <div class="row hidden" id="step-otp">
-      <label for="otp">Enter the OTP printed in the server console</label>
+      <label for="otp">Enter any OTP (any 6 digits work for now)</label>
       <input type="text" id="otp" inputmode="numeric" maxlength="6" placeholder="6-digit code">
     </div>
 
@@ -305,7 +311,7 @@ async function onPrimary() {
     if (!r.ok) { msg.textContent = (r.body && r.body.error) || 'Failed to send OTP.'; return; }
     window._mobile = mobile;
     stage = 'otp'; syncStage();
-    msg.textContent = 'OTP sent. Check the server console (mock delivery).';
+    msg.textContent = 'Testing mode — enter any 6-digit OTP to continue.';
     return;
   }
 
