@@ -2,8 +2,7 @@ services:
   - type: web
     name: dissent-vote
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    dockerfilePath: ./Dockerfile
     plan: free
     envVars:
       - key: SPRING_DATASOURCE_URL
