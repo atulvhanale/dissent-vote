@@ -1,7 +1,6 @@
 services:
   - type: web
     name: dissent-vote
-    env: java
     buildCommand: mvn clean package -DskipTests
     startCommand: java -jar target/dissent-vote-1.0.0.jar
     envVars:
